@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+
+set -e
+[ -n "$LANGTOOL_DEBUG" ] && set -x
+
+HOME_DIR=""
+cli_install_dir=""
+
+if [ -z "$HOME" ]; then
+	if command -v whoami >/dev/null 2>&1; then
+		HOME_DIR="/home/$(whoami)"
+		export HOME=$HOME_DIR
+	elif [ -n "$USER" ]; then
+		HOME_DIR="/home/${USER}"
+		export HOME=$HOME_DIR
+	else
+		echo "Unable to determine the user, please manually set HOME before \
+			continuing."
+		exit 1
+	fi
+fi
+
+if [ -z "$LT_CLI_DIR" ]; then
+	read -rp "Where would you like langtool-cli to be installed? \
+		(${HOME}/.local/share)" cli_install_dir
+
+	if [ -n "$cli_install_dir" ]; then
+		export LT_CLI_DIR="$cli_install_dir"
+	else
+		cli_install_dir="${HOME}/.local/share"
+		export LT_CLI_DIR="$cli_install_dir"
+	fi
+else
+	exit 0
+fi
+
+if [ -z "$LT_INSTALL_DIR" ]; then
+	read -rp "Where is LanguageTool installed? (${HOME}/.local/share/LanguageTool/)" \
+		install_dir
+
+	if [ -n "$install_dir" ]; then
+		export LT_INSTALL_DIR="$install_dir"
+	else
+		export LT_INSTALL_DIR="${HOME}/.local/share/LanguageTool/"
+	fi
+else
+	exit 0
+fi
+
+set_version() {
+	if [ -z "$1" ]; then
+		tries=0
+	else
+		tries=$1
+	fi
+
+	read -rp "Are you using a specific version of LanguageTool? (default: 6.8) [y/n]: " lt_sp_ver
+
+	case "${lt_sp_ver,,}" in
+		"y"|"yes")
+			read -rp "What version? (e.g., 6.8): " lt_ver
+
+			if [[ "$lt_ver" =~ ^[0-9]+\.[0-9]+$ ]]; then
+				export LT_VER="$lt_ver"
+			else
+				echo "Please provide a valid version number (e.g., 6.8)"
+
+				# shellcheck disable=SC2086
+				if [ $tries -gt 3 ]; then
+					exit 1
+				else
+					set_version $((tries + 1))
+				fi
+			fi
+			;;
+		"n"|"no")
+			export LT_VER="6.8"  # Set default version
+			;;
+		*)
+			echo "Only y[es] or n[o] is accepted as valid arguments."
+
+			# shellcheck disable=SC2086
+			if [ $tries -gt 3 ]; then
+				exit 1
+			else
+				set_version $((tries + 1))
+			fi
+			;;
+	esac
+}
+
+if [ -z "$LT_VER" ]; then
+	set_version
+fi
+
+failed_checkout() {
+	echo "Failed to git clone $1"
+	exit 1
+}
+
+checkout() {
+	[ -d "$2" ] || git -c advice.detachedHead=0 -c core.autocrlf=false clone --branch "$3" --depth 1 "$1" "$2" || failed_checkout "$1"
+}
+
+if ! command -v git 1>/dev/null 2>&1; then
+	echo "langtool-cli: Git is not installed, can't continue." >&2
+	exit 1
+fi
+
+if [ -n "${USE_SSH}" ]; then
+	if ! command -v ssh 1>/dev/null 2>&1; then
+		echo "langtool-cli: ssh is not installed and cannot continue." >&2
+
+		exit 1
+	fi
+
+	ssh -T git@github.com 1>/dev/null 2>&1 || EXIT_CODE=$?
+	if [[ ${EXIT_CODE} != 1 ]]; then
+		 echo "langtool-cli: github ssh authentication failed."
+	     	 echo
+      		 echo "In order to use the ssh connection option, you need to have an ssh key set up."
+      		 echo "Please generate an ssh key by using ssh-keygen, or follow the instructions at the following URL for more information:"
+      		 echo
+      		 echo "> https://docs.github.com/en/repositories/creating-and-managing-repositories/troubleshooting-cloning-errors#check-your-ssh-access"
+      		 echo
+      		 echo "Once you have an ssh key set up, try running the command again."
+
+		 exit 1
+	fi
+fi
+
+if [ -n "${USE_SSH}" ]; then
+	GITHUB="git@github.com"
+else
+	GITHUB="https://github.com/"
+fi
+
+checkout ${GITHUB}c0dezer019/langtool-cli.git	"$LT_CLI_DIR"	"${LANGTOOL_GIT_TAG:-master}"
