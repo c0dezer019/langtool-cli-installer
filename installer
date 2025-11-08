@@ -3,8 +3,15 @@
 set -e
 [ -n "$LANGTOOL_DEBUG" ] && set -x
 
+CLI_CONFIG="$HOME/.config/environment.d/langtool-cli.conf"
 HOME_DIR=""
 cli_install_dir=""
+
+
+if ! [ -d "$HOME/.config/environment.d" ]; then
+	mkdir -p "$HOME/.config/environment.d" && \
+	touch "$CLI_CONFIG"
+fi
 
 if [ -z "$HOME" ]; then
 	if command -v whoami >/dev/null 2>&1; then
@@ -26,22 +33,27 @@ if [ -z "$LT_CLI_DIR" ]; then
 
 	if [ -n "$cli_install_dir" ]; then
 		export LT_CLI_DIR="$cli_install_dir"
+		echo "LT_CLI_DIR=\"$cli_install_dir\"" > "$CLI_CONFIG"
 	else
-		cli_install_dir="${HOME}/.local/share"
+		cli_install_dir="$HOME/.local/share"
 		export LT_CLI_DIR="$cli_install_dir"
+		echo "LT_CLI_DIR=\"$cli_install_dir\"" > "$CLI_CONFIG"
 	fi
 else
 	exit 0
 fi
 
 if [ -z "$LT_INSTALL_DIR" ]; then
-	read -rp "Where is LanguageTool installed? (${HOME}/.local/share/LanguageTool/)" \
+	read -rp "Where is LanguageTool installed? (${HOME}/.local/share/LanguageTool)" \
 		install_dir
 
 	if [ -n "$install_dir" ]; then
 		export LT_INSTALL_DIR="$install_dir"
+		echo "LT_INSTALL_DIR=\"$install_dir\"" > "$CLI_CONFIG"
 	else
-		export LT_INSTALL_DIR="${HOME}/.local/share/LanguageTool/"
+		export LT_INSTALL_DIR="$HOME/.local/share/LanguageTool"
+		echo "LT_INSTALL_DIR=\"$HOME/.local/share/LanguageTool\"" \
+			> "$CLI_CONFIG"
 	fi
 else
 	exit 0
@@ -62,12 +74,13 @@ set_version() {
 
 			if [[ "$lt_ver" =~ ^[0-9]+\.[0-9]+$ ]]; then
 				export LT_VER="$lt_ver"
+				echo "LT_VER=\"$lt_ver\"" > "$CLI_CONFIG"
 			else
 				echo "Please provide a valid version number (e.g., 6.8)"
 
 				# shellcheck disable=SC2086
 				if [ $tries -gt 3 ]; then
-					exit 1
+					return 1
 				else
 					set_version $((tries + 1))
 				fi
@@ -75,22 +88,32 @@ set_version() {
 			;;
 		"n"|"no")
 			export LT_VER="6.8"  # Set default version
+			echo "LT_VER=\"6.8\"" > "$CLI_CONFIG"
 			;;
 		*)
 			echo "Only y[es] or n[o] is accepted as valid arguments."
 
 			# shellcheck disable=SC2086
 			if [ $tries -gt 3 ]; then
-				exit 1
+				return 1
 			else
 				set_version $((tries + 1))
 			fi
 			;;
 	esac
+
+	return 0
 }
 
 if [ -z "$LT_VER" ]; then
-	set_version
+	ver_is_set=set_version
+
+	if [ "$ver_is_set" ]; then
+		return 0
+	else
+		export LT_VER="6.8"
+		echo "LT_VER=\"6.8\"" > "$CLI_CONFIG"
+	fi
 fi
 
 failed_checkout() {
@@ -135,4 +158,4 @@ else
 	GITHUB="https://github.com/"
 fi
 
-checkout ${GITHUB}c0dezer019/langtool-cli.git	"$LT_CLI_DIR"	"${LANGTOOL_GIT_TAG:-master}"
+checkout ${GITHUB}c0dezer019/Langtool-CLI.git	"$LT_CLI_DIR"	"${LANGTOOL_GIT_TAG:-master}"
