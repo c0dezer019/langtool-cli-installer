@@ -108,9 +108,7 @@ set_version() {
 if [ -z "$LT_VER" ]; then
 	ver_is_set=set_version
 
-	if [ "$ver_is_set" ]; then
-		return 0
-	else
+	if [ -z "$ver_is_set" ]; then
 		export LT_VER="6.8"
 		echo "LT_VER=\"6.8\"" > "$CLI_CONFIG"
 	fi
