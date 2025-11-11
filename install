@@ -88,7 +88,7 @@ fi
 set_version() {
         local lt_sp_ver lt_ver
 
-        read -rp "Are you using a specific version of LanguageTool? [y/n]: " lt_sp_ver
+        read -rp "Are you using a specific version of LanguageTool? [y/n](n): " lt_sp_ver
 
         case "${lt_sp_ver,,}" in
                 "y"|"yes")
@@ -101,25 +101,21 @@ set_version() {
 							lt_ver="6.8"
                         fi
                         ;;
-                "n"|"no")
+                ""|"n"|"no")
                         export LT_VER="6.8"  # Set default version
                         update_config "LT_VER" "6.8"
                         ;;
                 *)
                         echo "Only y[es] or n[o] is accepted as valid arguments."
-                        exit 1
+                        set_version
                         ;;
         esac
 
         return 0
 }
 
-if [ -z "$LT_VER" ]; then
-        if ! set_version; then
-                echo "Unable to determine LanguageTool version, defaulting to 6.8"
-                export LT_VER="6.8"
-                update_config "LT_VER" "6.8"
-        fi
+if [ -z "${LT_VER}" ]; then
+        set_version
 else
         update_config "LT_VER" "$LT_VER"
 fi
