@@ -34,7 +34,7 @@ determine_shell_rc() {
 update_shell_rc() {
         local key="$1"
         local value="$2"
-        local shell_path shell_name shell_rc tmp_file escaped_value block_start block_end line pattern
+        local shell_path shell_name shell_rc tmp_file escaped_value section_t line pattern
 
         shell_path="${SHELL:-/bin/sh}"
         shell_name="$(basename "$shell_path")"
@@ -43,8 +43,7 @@ update_shell_rc() {
         mkdir -p "$(dirname "$shell_rc")"
         touch "$shell_rc"
 
-        block_start="# >>> langtool-cli >>>"
-        block_end="# <<< langtool-cli <<<"
+        section_t="# Langtool-CLI Config"
 
         escaped_value=${value//\\/\\\\}
         escaped_value=${escaped_value//"/\\"}
@@ -57,20 +56,11 @@ update_shell_rc() {
                 pattern="^[[:space:]]*export[[:space:]]+$key="
         fi
 
-        if grep -qF "$block_start" "$shell_rc"; then
+        if grep -qF "$section_t" "$shell_rc"; then
                 tmp_file="${shell_rc}.tmp"
-                awk -v start="$block_start" -v end="$block_end" -v newline="$line" -v pat="$pattern" '
+                awk -v start="$section_t" -v newline="$line" -v pat="$pattern" '
                         $0 == start {
                                 in_block=1
-                                print
-                                next
-                        }
-                        $0 == end {
-                                if (!updated) {
-                                        print newline
-                                        updated=1
-                                }
-                                in_block=0
                                 print
                                 next
                         }
@@ -89,7 +79,6 @@ update_shell_rc() {
                                         if (!updated) {
                                                 print newline
                                         }
-                                        print end
                                 }
                         }
                 ' "$shell_rc" > "$tmp_file"
@@ -99,9 +88,8 @@ update_shell_rc() {
                         printf '\n' >> "$shell_rc"
                 fi
                 {
-                        printf '%s\n' "$block_start"
+                        printf '%s\n' "$section_t"
                         printf '%s\n' "$line"
-                        printf '%s\n' "$block_end"
                 } >> "$shell_rc"
         fi
 }
