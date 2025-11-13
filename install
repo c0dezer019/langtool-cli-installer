@@ -3,7 +3,7 @@
 set -e
 [ -n "$LANGTOOL_DEBUG" ] && set -x
 
-HOME_DIR=""
+home_dir=""
 cli_install_dir=""
 
 determine_shell_rc() {
@@ -13,21 +13,21 @@ determine_shell_rc() {
         shell_name="$(basename "$shell_path")"
 
         case "$shell_name" in
-                bash)
-                        printf '%s\n' "$HOME/.bashrc"
-                        ;;
-                zsh)
-                        printf '%s\n' "$HOME/.zshrc"
-                        ;;
-                ksh)
-                        printf '%s\n' "$HOME/.kshrc"
-                        ;;
-                fish)
-                        printf '%s\n' "$HOME/.config/fish/config.fish"
-                        ;;
-                *)
-                        printf '%s\n' "$HOME/.profile"
-                        ;;
+        bash)
+                printf '%s\n' "$HOME/.bashrc"
+                ;;
+        zsh)
+                printf '%s\n' "$HOME/.zshrc"
+                ;;
+        ksh)
+                printf '%s\n' "$HOME/.kshrc"
+                ;;
+        fish)
+                printf '%s\n' "$HOME/.config/fish/config.fish"
+                ;;
+        *)
+                printf '%s\n' "$HOME/.profile"
+                ;;
         esac
 }
 
@@ -46,7 +46,7 @@ update_shell_rc() {
         section_t="# Langtool-CLI Config"
 
         escaped_value=${value//\\/\\\\}
-        escaped_value=${escaped_value//"/\\"}
+        escaped_value=${escaped_value//"/\\"/}
 
         if [ "$shell_name" = "fish" ]; then
                 line="set -gx $key \"$escaped_value\""
@@ -81,53 +81,62 @@ update_shell_rc() {
                                         }
                                 }
                         }
-                ' "$shell_rc" > "$tmp_file"
+                ' "$shell_rc" >"$tmp_file"
                 mv "$tmp_file" "$shell_rc"
         else
                 if [ -s "$shell_rc" ]; then
-                        printf '\n' >> "$shell_rc"
+                        printf '\n' >>"$shell_rc"
                 fi
                 {
                         printf '%s\n' "$section_t"
                         printf '%s\n' "$line"
-                } >> "$shell_rc"
+                } >>"$shell_rc"
         fi
 }
 
 
 if [ -z "$HOME" ]; then
         if command -v whoami >/dev/null 2>&1; then
-                HOME_DIR="/home/$(whoami)"
-		export HOME=$HOME_DIR
-	elif [ -n "$USER" ]; then
-		HOME_DIR="/home/${USER}"
-		export HOME=$HOME_DIR
-	else
-		echo "Unable to determine the user, please manually set HOME before \
-			continuing."
-		exit 1
-	fi
+                home_dir="/home/$(whoami)"
+                export HOME=$home_dir
+        elif [ -n "$USER" ]; then
+                home_dir="/home/${USER}"
+                export HOME=$home_dir
+        else
+                echo "Unable to determine the user, please manually set HOME before \
+		continuing."
+                exit 1
+        fi
+
+        echo "In order to use Langtool-CLI you should set your HOME as this \
+        tool only sets it temporarily: usermod -d /home/[user] [user]"
 fi
 
 if [ -z "$LT_CLI_DIR" ]; then
-	read -rp "Where would you like langtool-cli to be installed? \
-		(${HOME}/.local/share)" cli_install_dir
+        read -rp "Where would you like langtool-cli to be installed? \
+	(${HOME}/.local/share)" cli_install_dir
 
         if [ -n "$cli_install_dir" ]; then
                 export LT_CLI_DIR="$cli_install_dir"
                 update_shell_rc "LT_CLI_DIR" "$cli_install_dir"
         else
-                cli_install_dir="$HOME/.local/share"
+                cli_install_dir="$HOME/.local/share/Langtool-CLI"
                 export LT_CLI_DIR="$cli_install_dir"
                 update_shell_rc "LT_CLI_DIR" "$cli_install_dir"
         fi
+
+        if ! mkdir -p "$LT_CLI_DIR" 2>/dev/null; then
+                echo "Creating $LT_CLI_DIR requires elevated privileges, attempting with sudo..."
+                sudo mkdir -p "$LT_CLI_DIR"
+        fi
+
 else
         update_shell_rc "LT_CLI_DIR" "$LT_CLI_DIR"
 fi
 
 if [ -z "$LT_INSTALL_DIR" ]; then
-	read -rp "Where is LanguageTool installed? (${HOME}/.local/share/LanguageTool)" \
-		install_dir
+        read -rp "Where is LanguageTool installed? (${HOME}/.local/share)" \
+                install_dir
 
         if [ -n "$install_dir" ]; then
                 export LT_INSTALL_DIR="$install_dir"
@@ -146,24 +155,24 @@ set_version() {
         read -rp "Are you using a specific version of LanguageTool? [y/n](n): " lt_sp_ver
 
         case "${lt_sp_ver,,}" in
-                "y"|"yes")
-                        read -rp "What version? (e.g., 6.8): " lt_ver
+        "y" | "yes")
+                read -rp "What version? (e.g., 6.8): " lt_ver
 
-                        if [[ "$lt_ver" =~ ^[0-9]+\.[0-9]+$ ]]; then
-                                export LT_VER="$lt_ver"
-                                update_shell_rc "LT_VER" "$lt_ver"
-                        else
-							lt_ver="6.8"
-                        fi
-                        ;;
-                ""|"n"|"no")
-                        export LT_VER="6.8"  # Set default version
-                        update_shell_rc "LT_VER" "6.8"
-                        ;;
-                *)
-                        echo "Only y[es] or n[o] is accepted as valid arguments."
-                        set_version
-                        ;;
+                if [[ "$lt_ver" =~ ^[0-9]+\.[0-9]+$ ]]; then
+                        export LT_VER="$lt_ver"
+                        update_shell_rc "LT_VER" "$lt_ver"
+                else
+                        lt_ver="6.8"
+                fi
+                ;;
+        "" | "n" | "no")
+                export LT_VER="6.8" # Set default version
+                update_shell_rc "LT_VER" "6.8"
+                ;;
+        *)
+                echo "Only y[es] or n[o] is accepted as valid arguments."
+                set_version
+                ;;
         esac
 
         return 0
@@ -175,46 +184,55 @@ else
         update_shell_rc "LT_VER" "$LT_VER"
 fi
 
-failed_checkout() {
-	echo "Failed to git clone $1"
-	exit 1
+failed_clone() {
+        echo "Failed to git clone $1"
+        exit 1
 }
 
-checkout() {
-	[ -d "$2" ] || git -c advice.detachedHead=0 -c core.autocrlf=false clone --branch "$3" --depth 1 "$1" "$2" || failed_checkout "$1"
+clone() {
+        echo "Cloning..."
+        if [ ! -d "$2" ]; then
+                echo "Creating directories"
+                if ! mkdir -p "$LT_CLI_DIR" >/dev/null; then
+                        echo "Creating $LT_CLI_DIR requires elevated privileges, attempting with sudo..."
+                        sudo mkdir -p "$LT_CLI_DIR"
+                fi
+        fi
+
+        git -c advice.detachedHead=0 -c core.autocrlf=false clone --branch "$3" --depth 1 "$1" "$2" || failed_clone "$1"
 }
 
 if ! command -v git 1>/dev/null 2>&1; then
-	echo "langtool-cli: Git is not installed, can't continue." >&2
-	exit 1
+        echo "langtool-cli: Git is not installed, can't continue." >&2
+        exit 1
 fi
 
 if [ -n "${USE_SSH}" ]; then
-	if ! command -v ssh 1>/dev/null 2>&1; then
-		echo "langtool-cli: ssh is not installed and cannot continue." >&2
+        if ! command -v ssh 1>/dev/null 2>&1; then
+                echo "langtool-cli: ssh is not installed and cannot continue." >&2
 
-		exit 1
-	fi
+                exit 1
+        fi
 
-	ssh -T git@github.com 1>/dev/null 2>&1 || EXIT_CODE=$?
-	if [[ ${EXIT_CODE} != 1 ]]; then
-		 echo "langtool-cli: github ssh authentication failed."
-	     	 echo
-      		 echo "In order to use the ssh connection option, you need to have an ssh key set up."
-      		 echo "Please generate an ssh key by using ssh-keygen, or follow the instructions at the following URL for more information:"
-      		 echo
-      		 echo "> https://docs.github.com/en/repositories/creating-and-managing-repositories/troubleshooting-cloning-errors#check-your-ssh-access"
-      		 echo
-      		 echo "Once you have an ssh key set up, try running the command again."
+        ssh -T git@github.com 1>/dev/null 2>&1 || EXIT_CODE=$?
+        if [[ ${EXIT_CODE} != 1 ]]; then
+                echo "langtool-cli: github ssh authentication failed."
+                echo
+                echo "In order to use the ssh connection option, you need to have an ssh key set up."
+                echo "Please generate an ssh key by using ssh-keygen, or follow the instructions at the following URL for more information:"
+                echo
+                echo "> https://docs.github.com/en/repositories/creating-and-managing-repositories/troubleshooting-cloning-errors#check-your-ssh-access"
+                echo
+                echo "Once you have an ssh key set up, try running the command again."
 
-		 exit 1
-	fi
+                exit 1
+        fi
 fi
 
 if [ -n "${USE_SSH}" ]; then
-	GITHUB="git@github.com"
+        GITHUB="git@github.com"
 else
-	GITHUB="https://github.com/"
+        GITHUB="https://github.com/"
 fi
 
-checkout ${GITHUB}c0dezer019/Langtool-CLI.git	"$LT_CLI_DIR"	"${LANGTOOL_GIT_TAG:-master}"
+clone ${GITHUB}c0dezer019/Langtool-CLI.git "$LT_CLI_DIR" "${LANGTOOL_GIT_TAG:-base}"
