@@ -34,6 +34,7 @@ determine_shell_rc() {
 update_shell_rc() {
         local key="$1"
         local value="$2"
+        local mode="${3:-}"
         local shell_path shell_name shell_rc tmp_file escaped_value section_t line pattern
 
         shell_path="${SHELL:-/bin/sh}"
@@ -48,12 +49,22 @@ update_shell_rc() {
         escaped_value=${value//\\/\\\\}
         escaped_value=${escaped_value//"/\\"/}
 
-        if [ "$shell_name" = "fish" ]; then
-                line="set -gx $key \"$escaped_value\""
-                pattern="^[[:space:]]*set[[:space:]]+-gx[[:space:]]+$key([[:space:]]+|$)"
+        if [ "$mode" = "prepend_path" ]; then
+                if [ "$shell_name" = "fish" ]; then
+                        line="set -gx $key \"$escaped_value\" \$PATH"
+                        pattern="^[[:space:]]*set[[:space:]]+-gx[[:space:]]+$key([[:space:]]+|$)"
+                else
+                        line="export $key=\"$escaped_value:\$PATH\""
+                        pattern="^[[:space:]]*export[[:space:]]+$key="
+                fi
         else
-                line="export $key=\"$escaped_value\""
-                pattern="^[[:space:]]*export[[:space:]]+$key="
+                if [ "$shell_name" = "fish" ]; then
+                        line="set -gx $key \"$escaped_value\""
+                        pattern="^[[:space:]]*set[[:space:]]+-gx[[:space:]]+$key([[:space:]]+|$)"
+                else
+                        line="export $key=\"$escaped_value\""
+                        pattern="^[[:space:]]*export[[:space:]]+$key="
+                fi
         fi
 
         if grep -qF "$section_t" "$shell_rc"; then
@@ -236,3 +247,20 @@ else
 fi
 
 clone ${GITHUB}c0dezer019/Langtool-CLI.git "$LT_CLI_DIR" "${LANGTOOL_GIT_TAG:-base}"
+
+if [ -n "$LT_CLI_DIR" ]; then
+        lt_cli_bin="$LT_CLI_DIR/bin"
+        path_contains_bin=0
+        IFS=':' read -r -a path_entries <<<"${PATH:-}"
+        for entry in "${path_entries[@]}"; do
+                if [ "$entry" = "$lt_cli_bin" ]; then
+                        path_contains_bin=1
+                        break
+                fi
+        done
+        if [ $path_contains_bin -eq 0 ]; then
+                export PATH="$lt_cli_bin:$PATH"
+        fi
+
+        update_shell_rc "PATH" '$LT_CLI_DIR/bin' prepend_path
+fi
