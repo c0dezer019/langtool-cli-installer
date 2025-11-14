@@ -262,5 +262,5 @@ if [ -n "$LT_CLI_DIR" ]; then
                 export PATH="$lt_cli_bin:$PATH"
         fi
 
-        update_shell_rc "PATH" '$LT_CLI_DIR/bin' prepend_path
+        update_shell_rc "PATH" "$LT_CLI_DIR/bin" prepend_path
 fi
