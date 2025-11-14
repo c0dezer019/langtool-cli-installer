@@ -4,7 +4,7 @@ set -e
 [ -n "$LANGTOOL_DEBUG" ] && set -x
 
 log_step() {
-    printf '==> %s\n' "$1"
+    printf '\e[32m==>\e[0m %s\n' "$1"
 }
 
 home_dir=""
@@ -213,8 +213,8 @@ failed_clone() {
     exit 1
 }
 
-clone() {
-    log_step "Cloning Langtool CLI into $2"
+install_cli() {
+    log_step "Installing Langtool CLI into $2"
     if [ ! -d "$2" ]; then
         log_step "Ensuring directory exists for $2"
         if ! mkdir -p "$2" >/dev/null; then
@@ -225,7 +225,7 @@ clone() {
     fi
 
     git -c advice.detachedHead=0 -c core.autocrlf=false clone --branch "$3" \
-        --depth 1 "$1" "$2" || failed_clone "$1"
+        --depth 1 "$1" "$2" 1>/dev/null 2>&1 || failed_clone "$1"
 }
 
 log_step "Checking for git"
@@ -266,7 +266,7 @@ else
     GITHUB="https://github.com/"
 fi
 
-clone ${GITHUB}c0dezer019/Langtool-CLI.git "$LT_CLI_DIR" "${LANGTOOL_GIT_TAG:-base}"
+install_cli ${GITHUB}c0dezer019/Langtool-CLI.git "$LT_CLI_DIR" "${LANGTOOL_GIT_TAG:-base}"
 
 if [ -n "$LT_CLI_DIR" ]; then
     lt_cli_bin="$LT_CLI_DIR/bin"
@@ -283,6 +283,15 @@ if [ -n "$LT_CLI_DIR" ]; then
     fi
 
     log_step "Creating CLI symlinks in $lt_cli_bin"
+
+    if [ ! -d "$LT_CLI_DIR/bin" ]; then
+        if [ ! -w "$LT_CLI_DIR" ]; then
+            sudo mkdir "$LT_CLI_DIR/bin"
+        else
+            mkdir "$LT_CLI_DIR/bin"
+        fi
+    fi
+
     ln -s "$LT_CLI_DIR/lib/langtool" "$LT_CLI_DIR/bin/langtool"
     ln -s "$LT_CLI_DIR/lib/uninstall" "$LT_CLI_DIR/bin/uninstall"
     update_shell_rc "PATH" "$LT_CLI_DIR/bin" prepend_path
