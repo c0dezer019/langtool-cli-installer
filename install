@@ -125,7 +125,7 @@ fi
 
 if [ -z "$LT_CLI_DIR" ]; then
         read -rp "Where would you like langtool-cli to be installed? \
-	(${HOME}/.local/share)" cli_install_dir
+(${HOME}/.local/share)" cli_install_dir
 
         if [ -n "$cli_install_dir" ]; then
                 export LT_CLI_DIR="$cli_install_dir"
@@ -137,7 +137,8 @@ if [ -z "$LT_CLI_DIR" ]; then
         fi
 
         if ! mkdir -p "$LT_CLI_DIR" 2>/dev/null; then
-                echo "Creating $LT_CLI_DIR requires elevated privileges, attempting with sudo..."
+                echo "Creating $LT_CLI_DIR requires elevated privileges, \
+                attempting with sudo..."
                 sudo mkdir -p "$LT_CLI_DIR"
         fi
 
@@ -205,12 +206,14 @@ clone() {
         if [ ! -d "$2" ]; then
                 echo "Creating directories"
                 if ! mkdir -p "$LT_CLI_DIR" >/dev/null; then
-                        echo "Creating $LT_CLI_DIR requires elevated privileges, attempting with sudo..."
+                        echo "Creating $LT_CLI_DIR requires elevated privileges,\
+                        attempting with sudo..."
                         sudo mkdir -p "$LT_CLI_DIR"
                 fi
         fi
 
-        git -c advice.detachedHead=0 -c core.autocrlf=false clone --branch "$3" --depth 1 "$1" "$2" || failed_clone "$1"
+        git -c advice.detachedHead=0 -c core.autocrlf=false clone --branch "$3" \
+        --depth 1 "$1" "$2" || failed_clone "$1"
 }
 
 if ! command -v git 1>/dev/null 2>&1; then
@@ -229,10 +232,13 @@ if [ -n "${USE_SSH}" ]; then
         if [[ ${EXIT_CODE} != 1 ]]; then
                 echo "langtool-cli: github ssh authentication failed."
                 echo
-                echo "In order to use the ssh connection option, you need to have an ssh key set up."
-                echo "Please generate an ssh key by using ssh-keygen, or follow the instructions at the following URL for more information:"
+                echo "In order to use the ssh connection option, you need to \
+                have an ssh key set up."
+                echo "Please generate an ssh key by using ssh-keygen, or follow\
+                 the instructions at the following URL for more information:"
                 echo
-                echo "> https://docs.github.com/en/repositories/creating-and-managing-repositories/troubleshooting-cloning-errors#check-your-ssh-access"
+                echo "> https://docs.github.com/en/repositories/creating-and-\
+                managing-repositories/troubleshooting-cloning-errors#check-your-ssh-access"
                 echo
                 echo "Once you have an ssh key set up, try running the command again."
 
