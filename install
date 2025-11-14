@@ -268,5 +268,7 @@ if [ -n "$LT_CLI_DIR" ]; then
                 export PATH="$lt_cli_bin:$PATH"
         fi
 
+        ln -s "$LT_CLI_DIR/lib/langtool" "$LT_CLI_DIR/bin/langtool"
+        ln -s "$LT_CLI_DIR/lib/uninstall" "$LT_CLI_DIR/bin/uninstall"
         update_shell_rc "PATH" "$LT_CLI_DIR/bin" prepend_path
 fi
