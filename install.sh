@@ -150,6 +150,12 @@ if [ -n "$LT_CLI_DIR" ]; then
 
     update_shell_rc "PATH" "$LT_CLI_DIR/bin" prepend_path
     printf 'Symlinks created in %s\n' "$lt_cli_bin"
-    echo "Installation complete."
-    echo "Please restart your shell to access the CLI"
+
+    if [ "$LT_CLI_UPDATED" ]; then
+        echo "Langtool-CLI updated."
+    else
+        echo "Installation complete."
+        echo "Please restart your shell to access the CLI"
+    fi
+
 fi
